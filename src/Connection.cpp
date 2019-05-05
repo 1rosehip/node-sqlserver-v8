@@ -55,9 +55,11 @@ namespace mssql
 	{
 		const auto initialized = OdbcConnection::InitializeEnvironment();
 		const nodeTypeFactory fact;
+		const auto context = fact.isolate->GetCurrentContext();
 		const auto connection = fact.new_string("Connection");
 		if (!initialized) {
-			exports->Set(connection, fact.undefined());
+			const auto res = exports->Set(context, connection, fact.undefined());
+			res.Check();
 			fact.throwError("Unable to initialize msnodesql");
 			return;
 		}
@@ -68,12 +70,12 @@ namespace mssql
 		tpl->SetClassName(connection);
 
 		api(tpl);
-		const auto context = fact.isolate->GetCurrentContext();
 		const auto maybe = tpl->GetFunction(context);
 		Local<Function> local;
 		if (maybe.ToLocal(&local)) {
 			constructor.Reset(Isolate::GetCurrent(), local);
-			exports->Set(connection, local);
+			const auto res = exports->Set(context, connection, local);
+			res.Check();
 		}
 	}
 

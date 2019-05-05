@@ -138,23 +138,24 @@ namespace mssql
 
 	Local<Value> OdbcStatement::get_column_values() const
 	{
-		nodeTypeFactory fact;
+		const nodeTypeFactory fact;
+		const auto context = fact.isolate->GetCurrentContext();
 		auto result = fact.new_object();
 		if (_resultset->EndOfRows())
 		{
-			result->Set(fact.from_two_byte(L"end_rows"), fact.new_boolean(true));
+			result->Set(context, fact.from_two_byte(L"end_rows"), fact.new_boolean(true));
 		}
 
 		const auto number_rows = _resultset->get_result_count();
 		const auto column_count = static_cast<int>(_resultset->get_column_count());
 		const auto results_array = fact.new_array(number_rows);
-		result->Set(fact.from_two_byte(L"data"), results_array);
+		result->Set(context, fact.from_two_byte(L"data"), results_array);
 		for (size_t row_id = 0; row_id < number_rows; ++row_id) {
 			auto row_array = fact.new_array(column_count);
-			results_array->Set(row_id, row_array);
+			results_array->Set(context, row_id, row_array);
 			for (auto c = 0; c < column_count; ++c)
 			{
-				row_array->Set(c, _resultset->get_column(row_id, c)->ToValue());
+				row_array->Set(context, c, _resultset->get_column(row_id, c)->ToValue());
 			}
 		}
 
@@ -248,7 +249,7 @@ namespace mssql
 		SQLTCHAR parameter_type_name[256];
 		auto r = SQLGetStmtAttr(statement, SQL_ATTR_IMP_PARAM_DESC, &ipd, SQL_IS_POINTER, &string_length);
 		if (!check_odbc_error(r)) return;
-		auto schema = datum->get_storage()->schema;		
+		const auto schema = datum->get_storage()->schema;		
 		if (!schema.empty()) {
 			const auto schema_ptr = const_cast<wchar_t*>(schema.c_str());
 			r = SQLSetDescField(ipd, current_param, SQL_CA_SS_SCHEMA_NAME, reinterpret_cast<SQLPOINTER>(schema_ptr), schema.size() * sizeof(wchar_t));
@@ -561,8 +562,8 @@ namespace mssql
 	}
 
 	void OdbcStatement::cancel_handle()
-	{		
-		auto hnd = *_statement;
+	{
+		const auto hnd = *_statement;
 		const auto ret2 = SQLCancelHandle(hnd.HandleType, hnd.get());
 		if (!check_odbc_error(ret2))
 		{
@@ -594,7 +595,7 @@ namespace mssql
 		_endOfResults = true; // reset 
 		auto ret = query_timeout(timeout);
 		if (!check_odbc_error(ret)) return false;
-		auto query = q->query_string();
+		const auto query = q->query_string();
 		auto* sql_str = const_cast<wchar_t *>(query.c_str());
 		_statementState = STATEMENT_SUBMITTED;
 		if (polling_mode)

@@ -29,13 +29,8 @@ namespace mssql
     using namespace std;
     using namespace v8;
 
-    inline Local<String> New(const wchar_t* text)
-    {
-	   return String::NewFromTwoByte(Isolate::GetCurrent(), reinterpret_cast<const uint16_t*>(text));
-    }
-
     wstring FromV8String(Local<String> input);
-	void encode_numeric_struct(double v, int precision, int upscaleLimit, SQL_NUMERIC_STRUCT & numeric);
+	void encode_numeric_struct(double v, int precision, int upscale_limit, SQL_NUMERIC_STRUCT & numeric);
 
     string w2a(const wchar_t* input);
 
@@ -107,4 +102,37 @@ namespace mssql
 	   Local<Primitive> undefined() const;
 	   void throwError(const char * err) const;
 	};
+
+	inline Local<String> New(const uint16_t* text, int length = -1)
+	{
+		nodeTypeFactory fact;
+		auto isolate = fact.isolate;
+		const auto context = fact.isolate->GetCurrentContext();
+		auto maybe = String::NewFromTwoByte(isolate, text, v8::NewStringType::kNormal, length);
+		Local<String> local;
+		if (maybe.ToLocal(&local))
+		{
+			return local;
+		}
+		return local;
+	}
+
+	inline Local<String> New(const wchar_t* text, int length = -1)
+	{
+		return New(reinterpret_cast<const uint16_t*>(text), length);
+	}
+
+	inline Local<String> NewUtf8(const char* text, int length = -1)
+	{
+		nodeTypeFactory fact;
+		auto isolate = fact.isolate;
+		const auto context = fact.isolate->GetCurrentContext();
+		auto maybe = String::NewFromUtf8(isolate, text, v8::NewStringType::kNormal, length);
+		Local<String> local;
+		if (maybe.ToLocal(&local))
+		{
+			return local;
+		}
+		return local;
+	}
 }

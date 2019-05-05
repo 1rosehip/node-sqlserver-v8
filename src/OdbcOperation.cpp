@@ -25,7 +25,7 @@
 
 namespace mssql
 {
-	OdbcOperation::OdbcOperation(const size_t query_id, Local<Object> cb)
+	OdbcOperation::OdbcOperation(const size_t query_id, const Local<Object> cb)
 		:
 		_connection(nullptr),
 		_statement(nullptr),
@@ -35,7 +35,7 @@ namespace mssql
 		failures(nullptr)
 	{
 		_statementId = static_cast<long>(query_id);
-		nodeTypeFactory fact;
+		const nodeTypeFactory fact;
 		_output_param = fact.null();
 	}
 
@@ -49,7 +49,7 @@ namespace mssql
 		failures(nullptr)
 	{
 		_statementId = static_cast<long>(query_id);
-		nodeTypeFactory fact;
+		const nodeTypeFactory fact;
 		_output_param = fact.null();
 	}
 
@@ -63,7 +63,7 @@ namespace mssql
 		failures(nullptr)
 	{
 		_statementId = -1;
-		nodeTypeFactory fact;
+		const nodeTypeFactory fact;
 		_output_param = fact.null();
 	}
 
@@ -104,16 +104,17 @@ namespace mssql
 
 	int OdbcOperation::error(Local<Value> args[])
 	{
-		nodeTypeFactory fact;
+		const nodeTypeFactory fact;
+		const auto context = fact.isolate->GetCurrentContext();
 		const auto error_count = failures ? failures->size() : 0;
 		const auto errors = fact.new_array(error_count);
 		for (unsigned int i = 0; i < error_count; ++i)
 		{
 			const auto failure = (*failures)[i];
 			auto err = fact.error(failure->Message());
-			err->Set(fact.new_string("sqlstate"), fact.new_string(failure->SqlState()));
-			err->Set(fact.new_string("code"), fact.new_integer(failure->Code()));
-			errors->Set(i, err);
+			err->Set(context, fact.new_string("sqlstate"), fact.new_string(failure->SqlState()));
+			err->Set(context, fact.new_string("code"), fact.new_integer(failure->Code()));
+			errors->Set(context, i, err);
 		}
 		
 		auto more = false;
@@ -139,7 +140,7 @@ namespace mssql
 
 	int OdbcOperation::success(Local<Value> args[])
 	{
-		nodeTypeFactory fact;
+		const nodeTypeFactory fact;
 
 		args[0] = fact.new_local_value(fact.new_boolean(false));
 		const auto arg = CreateCompletionArg();
@@ -154,7 +155,7 @@ namespace mssql
 	{
 		auto isolate = Isolate::GetCurrent();
 		HandleScope scope(isolate);
-		nodeTypeFactory fact;
+		const nodeTypeFactory fact;
 		if (_callback.IsEmpty()) return;
 		Local<Value> args[4];
 		const auto argc = failed ? error(args) : success(args);

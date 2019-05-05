@@ -22,8 +22,8 @@ namespace mssql
 
 	bool QueryOperation::parameter_error_to_user_callback(const uint32_t param, const char* error) const
 	{
-		nodeTypeFactory fact;
-
+		const nodeTypeFactory fact;
+		const auto context = fact.isolate->GetCurrentContext();
 		_params->clear();
 
 		stringstream full_error;
@@ -31,8 +31,10 @@ namespace mssql
 
 		auto err = fact.error(full_error);
 		const auto imn = fact.new_string("IMNOD");
-		err->Set(fact.new_string("sqlstate"), imn);
-		err->Set(fact.new_string("code"), fact.new_integer(-1));
+		auto res = err->Set(context, fact.new_string("sqlstate"), imn);
+		res.Check();
+		res = err->Set(context, fact.new_string("code"), fact.new_integer(-1));
+		res.Check();
 
 		Local<Value> args[1];
 		args[0] = err;

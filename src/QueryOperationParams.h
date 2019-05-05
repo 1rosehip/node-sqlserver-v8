@@ -103,20 +103,17 @@ namespace mssql
 		bool getbool(Local<Object> query_object, const char* v)
 		{
 			nodeTypeFactory fact;
-			auto context = fact.isolate->GetCurrentContext();
+			auto isolate = fact.isolate;
+			auto context = isolate->GetCurrentContext();
 			auto l = get(query_object, v);
 			if (!l->IsNull())
 			{
-				auto maybe = l->ToBoolean(context);
-				Local<Boolean> local;
-				if (maybe.ToLocal(&local))
-				{
-					return local->Value();
-				}
+				auto local = l->ToBoolean(isolate);
+				return local->Value();
 			}
 			return 0;
 		}
-
+	
 		Local<Value> get(Local<Object> o, const char* v)
 		{
 			nodeTypeFactory fact;

@@ -15,12 +15,17 @@ namespace mssql
 
 	Local<Value> ReadNextResultOperation::CreateCompletionArg()
 	{
-		nodeTypeFactory fact;
+		const nodeTypeFactory fact;
+		const auto context = fact.isolate->GetCurrentContext();
 		auto more_meta = fact.new_object();
-		more_meta->Set(fact.new_string("endOfResults"), _statement->handle_end_of_results());
-		more_meta->Set(fact.new_string("meta"), _statement->get_meta_value());
-		more_meta->Set(fact.new_string("preRowCount"), fact.new_int32(static_cast<int32_t>(preRowCount)));
-		more_meta->Set(fact.new_string("rowCount"), fact.new_int32(static_cast<int32_t>(postRowCount)));
+		auto res = more_meta->Set(context, fact.new_string("endOfResults"), _statement->handle_end_of_results());
+		res.Check();
+		res = more_meta->Set(context, fact.new_string("meta"), _statement->get_meta_value());
+		res.Check();
+		res = more_meta->Set(context, fact.new_string("preRowCount"), fact.new_int32(static_cast<int32_t>(preRowCount)));
+		res.Check();
+		res = more_meta->Set(context, fact.new_string("rowCount"), fact.new_int32(static_cast<int32_t>(postRowCount)));
+		res.Check();
 
 		return more_meta;
 	}

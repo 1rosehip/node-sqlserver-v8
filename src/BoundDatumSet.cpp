@@ -27,8 +27,13 @@ namespace mssql
 	Local<Value> get(Local<Object> o, const char* v)
 	{
 		const nodeTypeFactory fact;
+		const auto context = fact.isolate->GetCurrentContext();
 		const auto vp = fact.new_string(v);
-		const auto val = o->Get(vp);
+		const auto maybe = o->Get(context, vp);
+		Local<Value> val;
+		if (maybe.ToLocal(&val)) {
+			return val;
+		}
 		return val;
 	}
 
@@ -48,11 +53,16 @@ namespace mssql
 
 		const auto cols = tvp_columns.As<Array>();
 		const auto count = cols->Length();
+		const nodeTypeFactory fact;
+		const auto context = fact.isolate->GetCurrentContext();
 
 		for (uint32_t i = 0; i < count; ++i) {
 			const auto binding = make_shared<BoundDatum>();
-			auto p = cols->Get(i);
-			const auto res = binding->bind(p);
+			auto maybe = cols->Get(context, i);
+			Local<Value> local;
+			auto res = maybe.ToLocal(&local);
+			if (!res) break;
+			res = binding->bind(local);
 			if (!res) break;
 			_bindings->push_back(binding);
 		}
@@ -61,39 +71,47 @@ namespace mssql
 
 	bool BoundDatumSet::bind(Local<Array>& node_params)
 	{
+		const nodeTypeFactory fact;
+		const auto context = fact.isolate->GetCurrentContext();
 		const auto count = node_params->Length();
 		auto res = true;
 		_output_param_count = 0;
 		if (count > 0) {
 			for (uint32_t i = 0; i < count; ++i) {
 				const auto binding = make_shared<BoundDatum>();
-				auto v = node_params->Get(i);
-				res = binding->bind(v);
+				auto maybe = node_params->Get(context, i);
+				Local<Value> local;
+				if (maybe.ToLocal(&local)) {
+					res = binding->bind(local);
 
-				switch (binding->param_type)
+					switch (binding->param_type)
+					{
+					case SQL_PARAM_OUTPUT:
+					case SQL_PARAM_INPUT_OUTPUT:
+						_output_param_count++;
+						break;
+
+					default:
+						break;
+					}
+
+					if (!res) {
+						err = binding->getErr();
+						first_error = i;
+						break;
+					}
+
+					_bindings->push_back(binding);
+
+					if (binding->is_tvp)
+					{
+						const auto col_count = get_tvp_col_count(local);
+						binding->tvp_no_cols = col_count;
+						res = tvp(local);
+					}
+				} else
 				{
-				case SQL_PARAM_OUTPUT:
-				case SQL_PARAM_INPUT_OUTPUT:
-					_output_param_count++;
-					break;
-
-				default:
-					break;
-				}
-
-				if (!res) {
-					err = binding->getErr();
-					first_error = i;
-					break;
-				}
-
-				_bindings->push_back(binding);
-
-				if (binding->is_tvp)
-				{
-					const auto col_count = get_tvp_col_count(v);
-					binding->tvp_no_cols = col_count;
-					res = tvp(v);
+					res = false;
 				}
 			}
 		}
@@ -103,7 +121,8 @@ namespace mssql
 
 	Local<Array> BoundDatumSet::unbind()
 	{
-		nodeTypeFactory fact;
+		const nodeTypeFactory fact;
+		const auto context = fact.isolate->GetCurrentContext();
 		const auto arr = fact.new_array(_output_param_count);
 		auto i = 0;
 
@@ -115,7 +134,7 @@ namespace mssql
 				case SQL_PARAM_INPUT_OUTPUT:
 				{
 					const auto v = param->unbind();
-					arr->Set(i++, v);
+					arr->Set(context, i++, v);
 				}
 				break;
 
